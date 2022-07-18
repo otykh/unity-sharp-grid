@@ -13,9 +13,9 @@ public class SmellGrid : Grid<GameObject>
     }
     public void DebugGrid()
     {
-        DrawCells(cells);
+        // DrawCells(cells);
     }
-    public void DrawCells(Cell<GameObject>[] cell)
+    private void DrawCells(Cell<GameObject>[] cell)
     {
         foreach(Cell<GameObject> c in cell)
         {
@@ -100,7 +100,7 @@ public class SmellGrid : Grid<GameObject>
 
         return cells[positionInArray].IsOutOfCell(oldPosition, newPosition);
     }
-    public override void MoveObject(GameObject obj, Vector3 oldPosition, Vector3 newPosition)
+    public override void UpdateObjectPosition(GameObject obj, Vector3 oldPosition, Vector3 newPosition)
     {
         bool outOfCellCheck = IsOutOfTheCell(oldPosition, newPosition);
 

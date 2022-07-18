@@ -18,9 +18,27 @@ public class GridTester : MonoBehaviour
 
     public bool moveObjects = false;
 
+    public string nameForTheTest = "NAME";
+    public bool doTimeTest = false;
+    public int cycles = 10000;
+
+    private int testCyclesLeft;
+
+    private System.Diagnostics.Stopwatch watch;
+
     private void Awake()
     {
-        moveObjects = false;
+        if(doTimeTest)
+        {
+            watch = new System.Diagnostics.Stopwatch();
+            moveObjects = true;
+            testCyclesLeft = cycles;
+        }
+        else
+        {
+            moveObjects = false;
+        }
+
         CreateEntities();
         CreateGrid();
     }
@@ -50,6 +68,23 @@ public class GridTester : MonoBehaviour
     }
     private void Update()
     {
+        if(watch != null)
+        {
+            if(watch.IsRunning == false)
+            {
+                watch.Start();
+            }
+
+            testCyclesLeft--;
+
+            if(testCyclesLeft < 0)
+            {
+                watch.Stop();
+                Debug.LogFormat("{0} passed with time {1} with average per update {2} ({3} updates), gridDepth: {4}, objectLimit: {5}, gridCellSize: {6}, gridSize: {7}, objectAmmount: {8}", nameForTheTest, watch.ElapsedMilliseconds, watch.ElapsedMilliseconds/cycles, cycles, gridCellDepth, objectLimitInCell, gridCellSize.ToString(), wholeGridSize.ToString(), ammountOfEntities);
+                Debug.Break();
+            }
+        }
+
         for (int i = 0; i < testObjects.Length; i++)
         {
             if (moveObjects)
@@ -60,16 +95,12 @@ public class GridTester : MonoBehaviour
 
             try
             {
-                grid.MoveObject(testObjects[i], previousPosition[i], testObjects[i].transform.position);
+                grid.UpdateObjectPosition(testObjects[i], previousPosition[i], testObjects[i].transform.position);
             }
-            catch(GridCell.NotInCellException)
+            finally
             {
                 previousPosition[i] = testObjects[i].transform.position;
-                Debug.Break();
-                continue;
             }
-
-            previousPosition[i] = testObjects[i].transform.position;
         }
     }
     private void CreateEntities()
