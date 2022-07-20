@@ -13,7 +13,7 @@ public class SmellGrid : Grid<GameObject>
     }
     public void DebugGrid()
     {
-        // DrawCells(cells);
+        //DrawCells(cells);
     }
     private void DrawCells(Cell<GameObject>[] cell)
     {
@@ -39,36 +39,6 @@ public class SmellGrid : Grid<GameObject>
             }
         }
     }
-    /*public static ParentCell HandleOverload(GameObject[] objects, Cell<GameObject> overloadedCell)
-    {
-        if (overloadedCell.maxCellDepth <= 0) // cannot split
-        {
-            throw new CannotSplitException();
-        }
-
-        return new ParentCell(overloadedCell.position, overloadedCell.size, objects.Length, overloadedCell.maxCellDepth - 1, objects);
-    }
-    public static ObjectCell HandleUnderload(Cell<GameObject> underloadedCell)
-    {
-        if(underloadedCell is not ParentCell)
-        {
-            throw new System.Exception("Underload was called from NOT the ParentCell");
-        }
-
-        ParentCell underloaded = underloadedCell as ParentCell;
-        GameObject[] extractedObjects = underloaded.GetObjectsFromCellsAndErase();
-        ObjectCell outputCell = new ObjectCell(underloaded.position, underloaded.size, underloaded.ReturnObjectLimit(), underloaded.maxCellDepth + 1);
-/*
-        Debug.Log(extractedObjects.Length);
-        Debug.Log(underloaded.ReturnObjectLimit());
-        for(int i = 0; i < extractedObjects.Length; i++)
-        {
-            Debug.Log(extractedObjects[i].name);
-            outputCell.AddNewObject(extractedObjects[i], extractedObjects[i].transform.position);
-        }
-
-        return outputCell;
-    }*/
     public override void AddObject(GameObject obj, Vector3 objPosition)
     {
         int positionInArray = base.DeterminePositionInArray(objPosition);
@@ -102,6 +72,39 @@ public class SmellGrid : Grid<GameObject>
     }
     public override void UpdateObjectPosition(GameObject obj, Vector3 oldPosition, Vector3 newPosition)
     {
+        int positionInArray = DeterminePositionInArray(oldPosition);
+
+        bool needsToBeAdded = false;
+
+        try
+        {
+            needsToBeAdded = cells[positionInArray].UpdateObjectPosition(obj, oldPosition, newPosition);
+        }
+        catch(System.Exception ex)
+        {
+            if(ex is NotInCellException)
+            {
+                // if when updated the cell was not present in the cell
+                // just add it to the new position
+                AddObject(obj, newPosition);
+            }
+            else if(ex is CannotAddObjectException)
+            {
+                // do nothing, the cell is full and cannot split
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        // if needsToBeAdded means that the object was removed but needs to be added to the other cells in the grid
+        if (needsToBeAdded)
+        {
+            AddObject(obj, newPosition);
+        }
+
+        /*
         bool outOfCellCheck = IsOutOfTheCell(oldPosition, newPosition);
 
         if (outOfCellCheck)
@@ -109,6 +112,7 @@ public class SmellGrid : Grid<GameObject>
             AddObject(obj, newPosition);
             RemoveObject(obj, oldPosition);
         }
+        */
     }
     protected override void InstantiateCells()
     {

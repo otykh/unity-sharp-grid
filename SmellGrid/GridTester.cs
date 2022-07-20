@@ -106,11 +106,12 @@ public class GridTester : MonoBehaviour
     private void CreateEntities()
     {
         testObjects = new GameObject[ammountOfEntities];
-        for(int i = 0; i < ammountOfEntities; i++)
+        for (int i = 0; i < ammountOfEntities; i++)
         {
             testObjects[i] = new GameObject(i.ToString());
-            float pos = Random.Range(this.transform.position.x, this.transform.position.x + gridCellSize.x * (wholeGridSize.x / 2));
-            testObjects[i].transform.position = new Vector3(pos, 0, pos);
+            float pos1 = Mathf.Lerp(this.transform.position.x + 1, this.transform.position.x + gridCellSize.x * wholeGridSize.x, Random.value);
+            float pos2 = Mathf.Lerp(this.transform.position.z + 1, this.transform.position.z + gridCellSize.y * wholeGridSize.y, Random.value);
+            testObjects[i].transform.position = new Vector3(pos1, 0, pos2);
             testObjects[i].transform.parent = parentObject;
         }
     }
