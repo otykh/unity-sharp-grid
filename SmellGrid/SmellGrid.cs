@@ -4,26 +4,28 @@ using UnityEngine;
 using UnityEditor; //only for handles label field
 using GridCell;
 
-public class SmellGrid : Grid<GameObject>
+public class SmellGrid : GridCell.Grid
 {
-    private ParentCell[] cells;
-    public SmellGrid(Vector3 initialPosition, int gridCellDepth, Vector2 gridCellSize, int objectLimit, Vector2Int gridSize) : base(initialPosition, gridCellDepth, gridCellSize, objectLimit, gridSize)
+    private ParentCell<Skeleton>[] cells;
+    private int objectLimit;
+    public SmellGrid(Vector3 initialPosition, int gridCellDepth, Vector2 gridCellSize, int objectLimit, Vector2Int gridSize) : base(initialPosition, gridCellDepth, gridCellSize, gridSize)
     {
-
+        this.objectLimit = objectLimit;
+        InstantiateCells();
     }
     public void DebugGrid()
     {
-        //DrawCells(cells);
+        DrawCells(cells);
     }
-    private void DrawCells(Cell<GameObject>[] cell)
+    private void DrawCells(BoidCell<Skeleton>[] cell)
     {
-        foreach(Cell<GameObject> c in cell)
+        foreach(BoidCell<Skeleton> c in cell)
         {
             Gizmos.DrawWireCube(TransformCellPosition(c), c.GetSizeInWorld());
 
-            if(c is ObjectCell)
+            if(c is ObjectCell<Skeleton>)
             {
-                GameObject[] objects = (c as ObjectCell).ReturnObjects();
+                Skeleton[] objects = (c as ObjectCell<Skeleton>).ReturnObject();
                 string outtext = "";
                 for(int i = 0; i < objects.Length; i++)
                 {
@@ -32,26 +34,31 @@ public class SmellGrid : Grid<GameObject>
                 }
                 Handles.Label(TransformCellPosition(c), outtext);
             }
-            if (c is ParentCell)
+            if (c is ParentCell<Skeleton>)
             {
-                DrawCells((c as ParentCell).ReturnCellsForDebuging());
-                Handles.Label(TransformCellPosition(c) + Vector3.forward * -10, (c as ParentCell).objectsInChildrenCells.ToString());
+                DrawCells((c as ParentCell<Skeleton>).ReturnCellsForDebuging());
+                Handles.Label(TransformCellPosition(c) + Vector3.forward * -10, (c as ParentCell<Skeleton>).objectsInChildrenCells.ToString());
             }
         }
     }
-    public override void AddObject(GameObject obj, Vector3 objPosition)
+    public int ReturnObjectCountInParentCellAt(Vector3 position)
+    {
+        return cells[DeterminePositionInArray(position)].objectsInChildrenCells;
+    }
+    public Vector3 ReturnCellNeighborParentCellAt(Vector3 position, Vector2Int direction)
+    {
+        return cells[DeterminePositionInArray(position)].GetParentNeighbor(position, direction);
+    }
+    public void AddObject(Skeleton obj, Vector3 objPosition)
     {
         int positionInArray = base.DeterminePositionInArray(objPosition);
         try
         {
             cells[positionInArray].AddNewObject(obj, objPosition);
         }
-        catch(CannotAddObjectException)
-        {
-            //Debug.LogWarning("Cennot add a new object! The max depth was reached!");
-        }
+        catch(CannotAddObjectException) { }
     }
-    public override void RemoveObject(GameObject obj, Vector3 objPosition)
+    public void RemoveObject(Skeleton obj, Vector3 objPosition)
     {
         int positionInArray = DeterminePositionInArray(objPosition);
 
@@ -59,10 +66,7 @@ public class SmellGrid : Grid<GameObject>
         {
             cells[positionInArray].RemoveObject(obj, objPosition);
         }
-        catch(NotInCellException)
-        {
-            //Debug.LogWarning(obj.name + " " + obj.transform.position.ToString() + " " + objPosition.ToString() + "The object could not be removed because it was not present in the located cell");
-        }
+        catch(NotInCellException) { }
     }
     public override bool IsOutOfTheCell(Vector3 oldPosition, Vector3 newPosition)
     {
@@ -70,7 +74,7 @@ public class SmellGrid : Grid<GameObject>
 
         return cells[positionInArray].IsOutOfCell(oldPosition, newPosition);
     }
-    public override void UpdateObjectPosition(GameObject obj, Vector3 oldPosition, Vector3 newPosition)
+    public void UpdateObjectPosition(Skeleton obj, Vector3 oldPosition, Vector3 newPosition)
     {
         int positionInArray = DeterminePositionInArray(oldPosition);
 
@@ -82,20 +86,14 @@ public class SmellGrid : Grid<GameObject>
         }
         catch(System.Exception ex)
         {
-            if(ex is NotInCellException)
+            if (ex is NotInCellException)
             {
                 // if when updated the cell was not present in the cell
                 // just add it to the new position
                 AddObject(obj, newPosition);
             }
-            else if(ex is CannotAddObjectException)
-            {
-                // do nothing, the cell is full and cannot split
-            }
-            else
-            {
-                throw;
-            }
+            else if (ex is CannotAddObjectException) { } // do nothing, the cell is full and cannot split  
+            else { throw; }
         }
 
         // if needsToBeAdded means that the object was removed but needs to be added to the other cells in the grid
@@ -103,28 +101,30 @@ public class SmellGrid : Grid<GameObject>
         {
             AddObject(obj, newPosition);
         }
-
-        /*
-        bool outOfCellCheck = IsOutOfTheCell(oldPosition, newPosition);
-
-        if (outOfCellCheck)
-        {
-            AddObject(obj, newPosition);
-            RemoveObject(obj, oldPosition);
-        }
-        */
+    }
+    public Skeleton[] ReturnObjectsInCellAt(Vector3 position)
+    {
+        int positionInArray = DeterminePositionInArray(position);
+        return cells[positionInArray].ReturnObjectAt(position);
+    }
+    public override Vector3 GetNeighborPositionAt(Vector3 position, Vector2Int direction)
+    {
+        return cells[DeterminePositionInArray(position)].GetNeighborCell(position, direction);
+    }
+    public override Vector3 GetNeighborRandomCenterPositionAt(Vector3 position, Vector2Int direction)
+    {
+        return GetNeighborPositionAt(position, direction) + new Vector3(direction.x + Random.value * 2, 0, direction.y + Random.value * 2);
     }
     protected override void InstantiateCells()
     {
-        cells = new ParentCell[gridSize.x * gridSize.y];
+        cells = new ParentCell<Skeleton>[gridSize.x * gridSize.y];
 
         int xCounter = 0;
         int yCounter = 0;
         for (int i = 0; i < gridSize.x * gridSize.y; i++)
         {
-            cells[i] = ParentCell.CreateSingleCell(
-                new Vector2(this.position.x + (gridCellSize.x * xCounter), 
-                this.position.z + (gridCellSize.y * yCounter)),
+            cells[i] = ParentCell<Skeleton>.CreateSingleCell(
+                new Vector2(this.position.x + (gridCellSize.x * xCounter), this.position.z + (gridCellSize.y * yCounter)),
                 gridCellSize,
                 objectLimit,
                 gridCellDepth);
